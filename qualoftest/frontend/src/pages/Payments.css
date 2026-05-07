@@ -1,0 +1,88 @@
+.payments-page {
+  max-width: 720px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.payments-list {
+  list-style: none;
+  margin-top: 20px;
+}
+
+.payments-list li {
+  background: white;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.pill {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: #eef3ff;
+  font-size: 13px;
+  color: #444;
+}
+
+.payments-err {
+  color: #c0392b;
+}
+
+.payment-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.payment-actions button {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.payment-actions button:first-child {
+  background: #007bff;
+  color: white;
+}
+
+.payment-actions button:first-child:hover:not(:disabled) {
+  background: #0056b3;
+  box-shadow: 0 2px 8px rgba(0, 86, 179, 0.2);
+}
+
+.payment-actions .btn-cancel {
+  background: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.payment-actions .btn-cancel:hover:not(:disabled) {
+  background: #f5c6cb;
+  border-color: #ed969e;
+  box-shadow: 0 2px 8px rgba(242, 112, 156, 0.2);
+}
+
+.payment-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.payment-message {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  background: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+  font-size: 14px;
+}

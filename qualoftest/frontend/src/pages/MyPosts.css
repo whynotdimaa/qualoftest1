@@ -1,0 +1,76 @@
+.my-posts-page {
+  max-width: 900px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.my-posts-page h1 {
+  font-size: 28px;
+  margin-bottom: 24px;
+  color: #1a1a2e;
+}
+
+.my-post-card {
+  background: white;
+  border-radius: 10px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: box-shadow 0.2s;
+}
+
+.my-post-card:hover {
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.my-post-card h2 {
+  font-size: 18px;
+  margin-bottom: 6px;
+}
+
+.my-post-card h2 a {
+  color: #1a1a2e;
+}
+
+.my-post-card h2 a:hover {
+  color: #0066cc;
+}
+
+.post-status {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.post-status.published {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.post-status.draft {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+.my-post-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.my-post-actions a {
+  background: #0066cc;
+  color: white;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.my-post-actions a:hover {
+  background: #0052a3;
+  text-decoration: none;
+}

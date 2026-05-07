@@ -1,0 +1,165 @@
+.post-page {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 0 20px;
+}
+
+.post-page h1 {
+  font-size: 32px;
+  margin-bottom: 12px;
+  color: #1a1a2e;
+}
+
+.post-page .post-meta {
+  font-size: 13px;
+  color: #999;
+  margin-bottom: 24px;
+}
+
+.post-page .post-content {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+.post-actions {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.post-actions a {
+  background: #0066cc;
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.post-actions a:hover {
+  background: #0052a3;
+  text-decoration: none;
+}
+
+.post-actions button {
+  background: #e74c3c;
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 6px;
+}
+
+.post-actions button:hover {
+  background: #c0392b;
+}
+
+.comments-section h2 {
+  font-size: 22px;
+  margin-bottom: 20px;
+  color: #1a1a2e;
+}
+
+.comment {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+
+.comment strong {
+  font-size: 14px;
+  color: #0066cc;
+}
+
+.comment p {
+  margin-top: 6px;
+  font-size: 15px;
+  color: #444;
+}
+
+.comment-form {
+  margin-top: 24px;
+}
+
+.comment-form textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.post-hero-img {
+  width: 100%;
+  max-height: 380px;
+  object-fit: cover;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  display: block;
+}
+
+.post-pinned-banner {
+  padding: 10px 14px;
+  background: #e8f4ff;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.comment-branch + .comment-branch {
+  margin-top: 0;
+}
+
+.comment-author-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.comment-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.comment-actions {
+  margin-top: 8px;
+}
+
+.btn-linkish {
+  background: none !important;
+  border: none;
+  color: #0066cc;
+  padding: 0 !important;
+  margin: 0;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.btn-linkish:hover {
+  text-decoration: underline;
+}
+
+.reply-hint {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.muted {
+  font-size: 14px;
+  color: #666;
+}
+
+.pin-diagnostics {
+  font-size: 13px;
+  margin-bottom: 8px;
+}
+
+.pin-msg.ok {
+  color: #238636;
+}
+
+.pin-msg.err {
+  color: #c0392b;
+}

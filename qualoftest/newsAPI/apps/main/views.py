@@ -1,0 +1,332 @@
+from rest_framework.decorators import api_view , permission_classes
+from django.shortcuts import render
+from rest_framework import generics, permissions, status, filters
+from rest_framework.response import Response
+from django_filters.rest_framework import DjangoFilterBackend
+from django.db.models import Q, Count
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from datetime import timedelta
+from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+from .models import Category, Post
+from .serializers import (CategorySerializer, PostListSerializer, PostDetailSerializer, PostCreateSerializer)
+from .permissions import IsAuthenticatedOrReadOnly, IsAdminOrReadOnly
+from ..comments.permissions import IsAuthorOrReadOnly
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Список категорій",
+        description="Повертає перелік усіх категорій новин із кількістю опублікованих постів у кожній.",
+        tags=['Категорії']
+    ),
+    post=extend_schema(
+        summary="Створити категорію",
+        description="Адміністративний метод для створення нової категорії.",
+        tags=['Категорії']
+    )
+)
+
+
+class CategoryListCreateView(generics.ListCreateAPIView):
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ['name', 'description']
+    ordering_fields = ['name', 'created_at']
+    ordering = ['name']
+
+    def get_queryset(self):
+        return Category.objects.annotate(
+            posts_count=Count(
+                'posts',
+                filter=Q(posts__status='published')
+            )
+        )
+# class CategoryListCreateView(generics.ListCreateAPIView):
+#     queryset = Category.objects.all()
+#     serializer_class = CategorySerializer
+#     permission_classes = [IsAdminOrReadOnly]
+#     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+#     search_fields = ['name','description']
+#     ordering_fields = ['name','created_at']
+#     ordering = ['name']
+
+@extend_schema_view(
+    get=extend_schema(summary="Деталі категорії", tags=['Категорії']),
+    put=extend_schema(summary="Оновити категорію", tags=['Категорії']),
+    patch=extend_schema(summary="Частково оновити категорію", tags=['Категорії']),
+    delete=extend_schema(summary="Видалити категорію", tags=['Категорії'])
+)
+class CategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+    permission_classes = [IsAdminOrReadOnly]
+    lookup_field = 'slug'
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Стрічка постів",
+        description="Повертає список постів. Для анонімів — лише опубліковані. Для авторів — опубліковані + власні чернетки. Закріплені пости відображаються першими.",
+        tags=['Пости']
+    ),
+    post=extend_schema(
+        summary="Створити пост",
+        description="Створює новий пост. Авторство автоматично присвоюється поточному користувачу.",
+        tags=['Пости']
+    )
+)
+class PostListCreateView(generics.ListCreateAPIView):
+    serializer_class = PostListSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    filter_backends = [filters.SearchFilter, DjangoFilterBackend, filters.OrderingFilter]
+    filterset_fields = ['category','author','status']
+    search_fields = ['title','content']
+    ordering_fields = ['created_at', 'updated_at', 'views_count']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        queryset = Post.objects.select_related('author','category')
+        if not self.request.user.is_authenticated:
+            queryset = queryset.filter(status= 'published')
+        else:
+            queryset = queryset.filter(Q(status= 'published') | Q(author=self.request.user))
+
+        return queryset
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return PostCreateSerializer
+        return PostListSerializer
+
+    def list(self, request , *args, **kwargs):
+        response = super().list(request, *args, **kwargs)
+
+        #Статистика закріплених постів
+        if hasattr(response, 'data') and 'results' in response.data:
+            pinned_count = sum(1 for post in response.data['results'] if post.get('is_pinned', False))
+            response.data['pinned_posts_count'] = pinned_count
+
+        return response
+
+
+@extend_schema_view(
+    get=extend_schema(
+        summary="Деталі поста",
+        description="Повертає повний вміст поста та інкрементує лічильник переглядів.",
+        tags=['Пости']
+    ),
+    put=extend_schema(summary="Оновити пост", tags=['Пости']),
+    patch=extend_schema(summary="Частково оновити пост", tags=['Пости']),
+    delete=extend_schema(summary="Видалити пост", tags=['Пости'])
+)
+class PostDetailView(generics.RetrieveUpdateDestroyAPIView):
+    queryset = Post.objects.select_related('author','category')
+    serializer_class = PostDetailSerializer
+    permission_classes = [IsAuthorOrReadOnly]
+    lookup_field = 'slug'
+
+    def get_serializer_class(self):
+        if self.request.method in ['PUT','PATCH']:
+            return PostCreateSerializer
+        return PostDetailSerializer
+
+    def retrieve(self, request,*args, **kwargs):
+        instance = self.get_object()
+
+        if request.method == 'GET':
+            instance.increment_views()
+
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+
+@extend_schema(
+    tags=['Пости'],
+    summary="Мої пости",
+    description="Список усіх постів (опублікованих та чернеток), які належать поточному користувачу."
+)
+class MyPostsView(generics.ListAPIView):
+    serializer_class = PostListSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter, filters.SearchFilter]
+    filterset_fields = ['category','status']
+    search_fields = ['title','content']
+    ordering_fields = ['created_at', 'updated_at', 'views_count']
+    ordering = ['-created_at']
+
+    def get_queryset(self):
+        return Post.objects.filter(author=self.request.user).select_related('author','category')
+
+
+@extend_schema(
+    tags=['Пости'],
+    summary="Пости за категорією",
+    description="Повертає список опублікованих постів для конкретної категорії (за її слагом).",
+    parameters=[OpenApiParameter(name="slug", type=str, location=OpenApiParameter.PATH)]
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def post_by_category(request, slug):
+    category = get_object_or_404(Category, slug=slug)
+    posts = Post.objects.with_subscription_info().filter(category=category,status = 'published')
+
+    from django.db.models import Case, When, Value, DateTimeField, BooleanField, F
+    from django.utils import timezone
+    posts = posts.annotate(
+        effective_data = Case(
+            When(
+                pin_info__isnull = False,
+                pin_info__user__subscription__status = 'active',
+                pin_info__user__subscription__end_date__gt = timezone.now(),
+                then = F('pin_info__pinned_at')
+            ),
+            default = F('created_at'),
+            output_field=DateTimeField()
+        ),
+        is_pinned_flag = Case(
+            When(
+                pin_info__isnull = False,
+                pin_info__user__subscription__status = 'active',
+                pin_info__user__subscription__end_date__gt = timezone.now(),
+                then = Value(True)
+            ),
+            default = Value(False),
+            output_field=BooleanField()
+        )
+    ).order_by('-is_pinned_flag', 'effective_data', '-created_at')
+
+    serializer = PostListSerializer(posts, many=True, context={'request': request})
+
+    return Response({
+        'category' : CategorySerializer(category).data,
+        'posts' : serializer.data,
+        'pinned_posts_count' : sum(1 for p in serializer.data if p.get('is_pinned', False)),
+    })
+
+
+@extend_schema(
+    tags=['Пости'],
+    summary="Популярні пости",
+    description="Повертає топ-10 постів з найбільшою кількістю переглядів."
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def popular_posts(request):
+    '''10 самих популярних постів '''
+    posts = Post.objects.with_subscription_info().filter(
+        status = 'published'
+    ).order_by('-views_count')[:10]
+
+    serializer = PostListSerializer(posts, many=True, context={'request': request})
+    return Response(serializer.data)
+
+
+@extend_schema(
+    tags=['Спеціальні вибірки'],
+    summary="Нещодавні пости",
+    description="Повертає 10 останніх опублікованих постів, відсортованих за датою створення (спочатку нові)."
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def recent_posts(request):
+    posts = Post.objects.with_subscription_info().filter(
+        status = 'published'
+    ).order_by('-created_at')[:10]
+
+    serializer = PostListSerializer(
+        posts,
+        many=True,
+        context={'request': request}
+    )
+    return Response(serializer.data)
+
+@extend_schema(
+    tags=['Спеціальні вибірки'],
+    summary="Тільки закріплені пости",
+    description="Повертає список усіх постів, які були закріплені авторами з активною підпискою."
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def pinned_posts_only(request):
+    '''Тільки закріпленні пости'''
+    posts = Post.objects.pinned_posts()
+    serializer = PostListSerializer(posts, many=True, context={'request': request})
+    return Response({
+        'count': posts.count(),
+        'results': serializer.data,
+    })
+@extend_schema(
+    tags=['Спеціальні вибірки'],
+    summary="Рекомендовані пости (Featured)",
+    description="Комплексна вибірка: повертає до 3 закріплених постів та до 6 популярних постів за останній тиждень."
+)
+@api_view(['GET'])
+@permission_classes([permissions.AllowAny])
+def featured_posts(request):
+    pinned_posts = Post.objects.pinned_posts()[:3]
+    week_ago = timezone.now() - timedelta(days=7)
+    popular_posts = Post.objects.with_subscription_info().filter(
+        status = 'published',
+        created_at__gte = week_ago
+    ).exclude(
+        id__in = [post.id for post in pinned_posts]
+    ).order_by('-views_count')[:6]
+
+    pinned_serializer = PostListSerializer(pinned_posts, many=True, context={'request': request})
+    popular_serializer = PostListSerializer(popular_posts, many=True, context={'request': request})
+
+    return Response({
+        'pinned_posts' : pinned_serializer.data,
+        'popular_posts' : popular_serializer.data,
+        'total_pinned' : Post.objects.pinned_posts().count(),
+    })
+
+
+@extend_schema(
+    tags=['Дії з постами'],
+    summary="Переключити закріплення поста",
+    description="Дозволяє автору закріпити або відкріпити свій пост. Вимагає активної підписки.",
+    responses={200: OpenApiTypes.OBJECT}
+)
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def toogle_post_pin_status(request, slug):
+    '''Переключає статус закріплення поста'''
+    post = get_object_or_404(Post, slug=slug, author=request.user, status = 'published')
+
+    if not hasattr(request.user, 'subscription') or not request.user.subscription.is_active:
+        return Response({
+            'error' : 'Active subscription required to pin posts'
+        },status = status.HTTP_403_FORBIDDEN)
+
+    try:
+        from apps.subscribe.models import PinnedPost
+
+        if post.is_pinned:
+            post.pin_info.delete()
+            message = 'Post unpinned successfully'
+            is_pinned = False
+        else:
+            if hasattr(request.user, 'pinned_post'):
+                request.user.pinned_post.delete()
+
+            PinnedPost.objects.create(user=request.user, post=post)
+            message = 'Post pinned successfully'
+            is_pinned = True
+
+        return Response({
+            'message' : message,
+            'is_pinned' : is_pinned,
+            'post' : PostDetailSerializer(post, context={'request': request}).data
+        })
+    except Exception as e:
+        return Response({
+            'error' : str(e)
+        }, status = status.HTTP_400_BAD_REQUEST)
+
+
+
+
+
+
