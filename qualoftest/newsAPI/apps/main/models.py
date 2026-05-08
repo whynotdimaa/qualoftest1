@@ -1,6 +1,7 @@
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from django.utils.text import slugify
 from django.urls import reverse
 
@@ -30,12 +31,19 @@ class PostManager(models.Manager):
         return self.filter(status='published')
 
     def pinned_posts(self):
-        return self.filter(pin_info__isnull=False,
-                           pin_info__user__subscription__status ='active',
-                           pin_info__user__subscription__end_date__gt=models.functions.Now,
-                           status='published').select_related('pin_info', 'pin_info__user', 'pin_info__user__subscription').order_by('pin_info__pinned_at')
+        return self.filter(
+            pin_info__isnull=False,
+            pin_info__user__subscription__status='active',
+            pin_info__user__subscription__end_date__gt=timezone.now(),
+            status='published'
+        ).select_related(
+            'pin_info',
+            'pin_info__user',
+            'pin_info__user__subscription'
+        ).order_by('pin_info__pinned_at')
+
     def regular_posts(self):
-        return self.filter(pin_info__isnull=True,status ='published')
+        return self.filter(pin_info__isnull=True, status='published')
 
     def with_subscription_info(self):
         return self.select_related('author', 'author__subscription', 'category').prefetch_related('pin_info')
@@ -89,8 +97,11 @@ class Post(models.Model):
     @property
     def is_pinned(self):
         try:
-            return self.pin_info is not None
-        except ObjectDoesNotExist:
+            if self.pin_info is None:
+                return False
+            subscription = self.pin_info.user.subscription
+            return subscription.is_active
+        except (ObjectDoesNotExist, AttributeError):
             return False
 
     @property

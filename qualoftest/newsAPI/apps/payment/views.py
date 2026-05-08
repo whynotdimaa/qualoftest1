@@ -1,5 +1,6 @@
 import stripe
 import json
+from decimal import Decimal
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -99,6 +100,17 @@ def create_checkout_session(request):
                     'cancel_url',
                     f"{settings.FRONTEND_URL}/payment/cancel"
                 )
+
+                # Якщо план безкоштовний, активуємо підписку одразу та повертаємо локальний URL
+                if plan.price <= 0:
+                    PaymentService.process_successful_payment(payment)
+                    session_data = {
+                        'checkout_url': success_url.replace('{CHECKOUT_SESSION_ID}', 'free'),
+                        'session_id': 'free',
+                        'payment_id': payment.id,
+                    }
+                    response_serializer = StripeCheckoutSessionSerializer(session_data)
+                    return Response(response_serializer.data, status=status.HTTP_201_CREATED)
 
                 # Створюємо Stripe сесію
                 session_data = StripeService.create_checkout_session(
@@ -290,17 +302,22 @@ class RefundDetailView(generics.RetrieveAPIView):
 
 @extend_schema(
     tags=['Повернення коштів (Refunds)'],
-    summary="Створити повернення коштів (Admin)",
-    description="Тільки для адміністраторів: ініціює повне або часткове повернення коштів через Stripe.",
+    summary="Створити повернення коштів",
+    description="Ініціює повне або часткове повернення коштів через Stripe для власного платежу або для адміністратора.",
     request=RefundCreateSerializer,
     responses={201: RefundSerializer}
 )
 @api_view(['POST'])
-@permission_classes([permissions.IsAdminUser])
+@permission_classes([permissions.IsAuthenticated])
 def create_refund(request, payment_id):
     """Створює повернення для платежу"""
     try:
         payment = get_object_or_404(Payment, id=payment_id)
+
+        if payment.user != request.user and not request.user.is_staff:
+            return Response({
+                'detail': 'You do not have permission to perform this action.'
+            }, status=status.HTTP_403_FORBIDDEN)
 
         if not payment.can_be_refunded:
             return Response({

@@ -66,6 +66,17 @@
   border: 1px solid #f5c6cb;
 }
 
+.payment-actions .btn-refund {
+  background: #ffe5b4;
+  color: #7a4b00;
+  border: 1px solid #ffd38a;
+}
+
+.payment-actions .btn-refund:hover:not(:disabled) {
+  background: #ffd38a;
+  box-shadow: 0 2px 8px rgba(255, 173, 59, 0.2);
+}
+
 .payment-actions .btn-cancel:hover:not(:disabled) {
   background: #f5c6cb;
   border-color: #ed969e;

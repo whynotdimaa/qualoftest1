@@ -7,7 +7,25 @@ import "./Subscribe.css";
 export const Subscribe = () => {
   const [plans, setPlans] = useState([]);
   const [error, setError] = useState("");
+  const [subscription, setSubscription] = useState(null);
+  const [subscriptionMessage, setSubscriptionMessage] = useState("");
+  const [subscriptionError, setSubscriptionError] = useState("");
   const [busyId, setBusyId] = useState(null);
+  const [canceling, setCanceling] = useState(false);
+
+  const loadSubscription = async () => {
+    setSubscriptionError("");
+    try {
+      const { data } = await api.get("/subscribe/my-subscription/");
+      setSubscription(data);
+    } catch (e) {
+      if (e.response?.status === 404) {
+        setSubscription(null);
+      } else {
+        setSubscriptionError(getApiErrorMessage(e.response?.data, "Не вдалося завантажити підписку"));
+      }
+    }
+  };
 
   useEffect(() => {
     api
@@ -20,10 +38,14 @@ export const Subscribe = () => {
       .catch((e) =>
         setError(getApiErrorMessage(e.response?.data, "Не вдалося завантажити плани")),
       );
+
+    loadSubscription();
   }, []);
 
   const startCheckout = async (planId) => {
     setError("");
+    setSubscriptionMessage("");
+    setSubscriptionError("");
     setBusyId(planId);
     try {
       const origin = window.location.origin;
@@ -52,6 +74,26 @@ export const Subscribe = () => {
     }
   };
 
+  const cancelSubscription = async () => {
+    if (!window.confirm("Ви впевнені, що хочете скасувати підписку?")) {
+      return;
+    }
+    setSubscriptionMessage("");
+    setSubscriptionError("");
+    setCanceling(true);
+    try {
+      const { data } = await api.post("/subscribe/cancel/");
+      setSubscriptionMessage(data.message ?? "Підписку скасовано.");
+      await loadSubscription();
+    } catch (e) {
+      setSubscriptionError(
+        getApiErrorMessage(e.response?.data, "Не вдалося скасувати підписку"),
+      );
+    } finally {
+      setCanceling(false);
+    }
+  };
+
   return (
     <div className="subscribe-page">
       <h1>Плани підписки</h1>
@@ -59,12 +101,42 @@ export const Subscribe = () => {
         Після успішної оплати з’явиться доступ до закріплення власних постів.{" "}
         <Link to="/payments">Мої платежі</Link>
       </p>
+      {subscription ? (
+        <div className="subscription-card">
+          <h2>Моя підписка</h2>
+          <p>
+            План: <strong>{subscription.plan_info?.name ?? subscription.plan}</strong>
+          </p>
+          <p>
+            Статус: <strong>{subscription.status}</strong>
+            {subscription.is_active ? ` · ${subscription.days_remaining} днів залишилось` : ''}
+          </p>
+          {subscriptionMessage ? (
+            <p className="subscribe-message">{subscriptionMessage}</p>
+          ) : null}
+          {subscriptionError ? (
+            <p className="subscribe-error">{subscriptionError}</p>
+          ) : null}
+          {subscription.is_active ? (
+            <button
+              type="button"
+              className="cancel-subscription-button"
+              disabled={canceling}
+              onClick={cancelSubscription}
+            >
+              {canceling ? 'Скасовується…' : 'Скасувати підписку'}
+            </button>
+          ) : null}
+        </div>
+      ) : null}
       {error ? <p className="subscribe-error">{error}</p> : null}
       <div className="plan-grid">
         {plans.map((p) => (
           <article key={p.id} className="plan-card">
             <h2>{p.name}</h2>
-            <p className="plan-price">${p.price}</p>
+            <p className="plan-price">
+              {p.price === 0 ? 'Безкоштовно' : `$${p.price}`}
+            </p>
             <p className="plan-days">{p.duration_days} днів</p>
             {Array.isArray(p.features) && p.features.length > 0 ? (
               <ul className="plan-features">

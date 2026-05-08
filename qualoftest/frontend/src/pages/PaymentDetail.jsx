@@ -57,6 +57,34 @@ export const PaymentDetail = () => {
       .finally(() => setLoading(false));
   };
 
+  const refundPayment = () => {
+    if (!window.confirm("Ви впевнені, що хочете зробити повне повернення коштів?")) {
+      return;
+    }
+    setSyncMsg("");
+    setLoading(true);
+
+    api
+      .post(`/payment/payments/${id}/refund/`, {
+        amount: data.amount,
+        reason: 'Refund requested from frontend',
+      })
+      .then((r) => {
+        setSyncMsg(
+          r.data.id
+            ? 'Повернення створено успішно. Перевірте статус платежу.'
+            : 'Повернення виконано.'
+        );
+        loadPayment();
+      })
+      .catch((e) => {
+        setSyncMsg(
+          getApiErrorMessage(e.response?.data, 'Не вдалося зробити повернення коштів'),
+        );
+      })
+      .finally(() => setLoading(false));
+  };
+
   if (error) return <div className="payments-page">{error}</div>;
   if (!data) return <p className="payments-page">Завантаження…</p>;
 
@@ -85,6 +113,16 @@ export const PaymentDetail = () => {
             className="btn-cancel"
           >
             Скасувати платіж
+          </button>
+        )}
+        {data.can_be_refunded && !data.is_pending && data.amount > 0 && (
+          <button
+            type="button"
+            onClick={refundPayment}
+            disabled={loading}
+            className="btn-refund"
+          >
+            Повернути кошти
           </button>
         )}
       </div>

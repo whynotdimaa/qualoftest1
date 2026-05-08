@@ -33,6 +33,10 @@ class Command(BaseCommand):
         for plan in plans:
             self.stdout.write(f'Обробляємо план: {plan.name}')
 
+            if plan.price <= 0:
+                self.stdout.write(f'  ⏭️ Пропускаємо безкоштовний план: {plan.name}')
+                continue
+
             # Перевіряємо, чи потрібно створювати новий Price ID
             if plan.stripe_price_id and not force and plan.stripe_price_id.startswith('price_'):
                 self.stdout.write(f'  ⏭️ План уже має реальний Stripe ID: {plan.stripe_price_id}')
